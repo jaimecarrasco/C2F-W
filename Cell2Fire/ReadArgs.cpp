@@ -283,6 +283,15 @@ parseArgs(int argc, char* argv[], arguments* args_ptr)
         printf("Active front: %s \n", btoa(active_front));
     }
 
+    //--active-front-full (ignite ALL fuel cells at once, single time step: snapshot)
+    if (cmdOptionExists(argv, argv + argc, "--active-front-full"))
+    {
+        args_ptr->ActiveFrontFull = true;
+        active_front = true;
+        input_ignitions = true;
+        printf("Active front FULL: todo el paisaje combustible, 1 paso de tiempo\n");
+    }
+
     //--grids
     if (cmdOptionExists(argv, argv + argc, "--grids"))
     {
@@ -661,6 +670,8 @@ parseArgs(int argc, char* argv[], arguments* args_ptr)
         printf("MaxFirePeriods: %s \n", max_fire_periods);
         args_ptr->MaxFirePeriods = std::stoi(max_fire_periods, &sz);
     }
+    else if (args_ptr->ActiveFrontFull)
+        args_ptr->MaxFirePeriods = 1;  // foto del frente en t fijo (salvo override explicito)
     else
         args_ptr->MaxFirePeriods = dmax_fire_periods;
 

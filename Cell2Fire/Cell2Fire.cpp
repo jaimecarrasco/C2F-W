@@ -1008,6 +1008,29 @@ Cell2Fire::Cell2Fire(arguments _args) : CSVForest(_args.InFolder + "fuels", " ")
     {
         this->ActiveFrontCells.clear();
 
+        // --- Modalidad FULL: todo el paisaje combustible como frente activo -----
+        // Enciende TODAS las celdas con combustible a la vez; con MaxFirePeriods=1
+        // produce una "foto" del comportamiento real del frente en un instante,
+        // reutilizando la maquinaria dinamica (manageFire, breaching, spotting).
+        if (this->args.ActiveFrontFull)
+        {
+            for (int cid = 1; cid <= this->nCells; ++cid)
+            {
+                // df global: celda combustible si su nftype es valido (>0)
+                if (df[cid - 1].nftype > 0)
+                    this->ActiveFrontCells.push_back(cid);
+            }
+            if (this->ActiveFrontCells.empty())
+                throw std::runtime_error("active-front-full: no hay celdas combustibles.");
+            this->args.TotalYears = 1;
+            this->IgnitionPoints = std::vector<int>(1, this->ActiveFrontCells[0]);
+            this->IgnitionSets = std::vector<std::vector<int>>(1);
+            std::cout << "Active front FULL: " << this->ActiveFrontCells.size()
+                      << " celdas combustibles encendidas simultaneamente (1 paso)" << std::endl;
+        }
+        else
+        {
+
         // --- Modalidad B: frente desde shapefile (--active-front-shp) ---------
         // Acepta PolyLine/Polygon (se rasteriza el trazado con muestreo denso, igual
         // que --river-shp) o Point/MultiPoint (cada punto es una celda semilla).
@@ -1094,6 +1117,7 @@ Cell2Fire::Cell2Fire(arguments _args) : CSVForest(_args.InFolder + "fuels", " ")
             std::cout << "Active front: " << this->ActiveFrontCells.size()
                       << " seed cells will ignite simultaneously" << std::endl;
         }
+        }  // cierra else (modalidades A/B, no-full)
     }
 
     /* BBO Tuning factors (only the ones present in the instances*/

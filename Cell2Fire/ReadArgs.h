@@ -35,6 +35,10 @@ struct arguments
     bool SimStatic = false;          // --sim-static: modo estatico. Calcula metricas potenciales
                                      // por celda para TODO el paisaje, una capa por fila de Weather.csv.
                                      // No propaga fuego; hereda el kernel (S/K/C/P), fmc-shading y lookup.
+    bool ActiveFrontFull = false;    // --active-front-full: enciende TODAS las celdas combustibles
+                                     // como frente activo simultaneo y corre un unico paso de tiempo
+                                     // (foto del frente completo en t fijo). Reutiliza la maquinaria
+                                     // dinamica (manageFire, breaching, spotting) congelada en 1 periodo.
     double BreachFactor = 0.0;       // --breach-factor k: breaching Prometheus (0=off). Cruza barrera si k*FL >= ancho
     double SpotFactor = 0.0;         // --spot-factor k: spotting Albini (0=off). Cruza si k*FL*viento(m/s) >= ancho
     std::string RiverShp = "";       // --river-shp: shapefile del rio (polilinea/poligono, CRS de la instancia)
