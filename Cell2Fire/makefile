@@ -42,7 +42,7 @@ endif
 # ---------- Fuentes ----------
 SRCS = Cell2Fire.cpp Cells.cpp FuelModelUtils.cpp ScottAndBurganKernel.cpp \
        KitralKernel.cpp CanadianFBPKernel.cpp Spotting.cpp ReadCSV.cpp \
-       ReadArgs.cpp Lightning.cpp WriteCSV.cpp DataGenerator.cpp
+       ReadArgs.cpp Lightning.cpp WriteCSV.cpp DataGenerator.cpp StaticMode.cpp
 OBJS   = $(SRCS:.cpp=.o)
 TEST_TARGET = test_cell2fire
 TEST_DIR   = ../test/unit_tests

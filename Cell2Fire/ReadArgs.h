@@ -32,6 +32,9 @@ struct arguments
     std::string FchMode = "kitral";  // --fch-mode: kitral|emc|ffmc|isi
     std::string LbMode = "kitral";   // --lb-mode: kitral|sb
     bool FmcShading = false;         // --fmc-shading: acond. espacial humedad (sunny/shade)
+    bool SimStatic = false;          // --sim-static: modo estatico. Calcula metricas potenciales
+                                     // por celda para TODO el paisaje, una capa por fila de Weather.csv.
+                                     // No propaga fuego; hereda el kernel (S/K/C/P), fmc-shading y lookup.
     double BreachFactor = 0.0;       // --breach-factor k: breaching Prometheus (0=off). Cruza barrera si k*FL >= ancho
     double SpotFactor = 0.0;         // --spot-factor k: spotting Albini (0=off). Cruza si k*FL*viento(m/s) >= ancho
     std::string RiverShp = "";       // --river-shp: shapefile del rio (polilinea/poligono, CRS de la instancia)

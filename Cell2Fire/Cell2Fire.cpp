@@ -14,6 +14,7 @@ __maintainer__ = "Jaime Carrasco-Barra, Matilde Rivas, David Palacios"
 #include "FuelModelUtils.h"
 #include "Lightning.h"
 #include "ReadArgs.h"
+#include "StaticMode.h"
 #include "ReadCSV.h"
 #include "ReadShp.h"
 #include "Spotting.h"
@@ -3101,6 +3102,34 @@ main(int argc, char* argv[])
     // TODO)
     int num_threads = args.nthreads;
     Cell2Fire Forest2(args);  // generate Forest object
+
+    // ----------------------- MODO ESTATICO (--sim-static) -----------------------
+    // Desvio ANTES del loop dinamico: calcula metricas potenciales por celda para
+    // todo el paisaje, una capa por fila de Weather.csv. No propaga fuego.
+    if (args.SimStatic)
+    {
+        // Mapa de barreras por celda (id 1-based -> ancho m) desde los arcos bloqueados.
+        std::unordered_map<int, double> barrierWidth;
+        for (const auto& kv : Forest2.blockedArcs)
+        {
+            long long key = kv.first;
+            int to = (int)(key % Forest2.nCells);      // celda destino del arco
+            double w = kv.second;
+            if (w >= 1e8)
+                w = Forest2.cellSide;                   // firebreak infranqueable: ancho ~1 celda
+            auto it = barrierWidth.find(to);
+            if (it == barrierWidth.end() || w > it->second)
+                barrierWidth[to] = w;
+        }
+        std::unordered_map<std::string, int> emptyLookup;
+        int rc = runStaticMode(&args, df, (int)Forest2.nCells, Forest2.coefs,
+                               Forest2.rows, Forest2.cols, Forest2.cellSide,
+                               Forest2.xllcorner, Forest2.yllcorner,
+                               Forest2.WeatherData, barrierWidth, emptyLookup);
+        return rc;
+    }
+    // ----------------------------------------------------------------------------
+
     std::vector<Cell2Fire> Forests(num_threads, Forest2);
     if (args.Simulator == "K")
     {
