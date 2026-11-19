@@ -15,10 +15,14 @@ __maintainer__ = "Jaime Carrasco-Barra, Matilde Rivas, David Palacios"
 #include <vector>
 
 // ---- Helpers de humedad del combustible (para --fch-mode) ----
-static float emc_simard(float T, float H) {  // EMC Simard (%), T en C, H=RH%
-    if (H < 10.0f)  return 0.03229f + 0.281073f * H - 0.000578f * H * T;
-    if (H <= 50.0f) return 2.22749f + 0.160107f * H - 0.014784f * T;
-    return 21.0606f + 0.005565f * H * H - 0.00035f * H * T - 0.483199f * H;
+static float emc_simard(float T, float H) {  // EMC Simard (%); T en C (se convierte a F), H=RH%
+    // Fix unidades: las ecuaciones de Simard (1968) estan formuladas en F.
+    // Antes se pasaba T en C con coeficientes de F -> EMC sobreestimada ~8-20%.
+    // Consistente ahora con ReadCSV.cpp (modo conditioning S&B), que ya convierte a F.
+    float Tf = T * 9.0f / 5.0f + 32.0f;
+    if (H < 10.0f)  return 0.03229f + 0.281073f * H - 0.000578f * H * Tf;
+    if (H <= 50.0f) return 2.22749f + 0.160107f * H - 0.014784f * Tf;
+    return 21.0606f + 0.005565f * H * H - 0.00035f * H * Tf - 0.483199f * H;
 }
 static float eta_M(float m) {  // damping de humedad de Rothermel, Mx=30%
     float r = m / 30.0f; if (r > 1.0f) r = 1.0f;
