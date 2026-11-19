@@ -894,6 +894,18 @@ Cell2Fire::Cell2Fire(arguments _args) : CSVForest(_args.InFolder + "fuels", " ")
 
         // Total Years
         IgnitionYears = IgnitionsDF.size() - 1;
+        // Robustez: si el Ignitions.csv falta o esta vacio (p.ej. la instancia usa
+        // un shapefile de ignicion en vez del CSV), IgnitionsDF.size() es 0 y
+        // IgnitionYears queda en -1, lo que al construir std::vector<int>(IgnitionYears)
+        // lanza std::length_error (size_t gigante). Se detiene con mensaje claro.
+        if (IgnitionYears < 1)
+        {
+            std::cerr << "ERROR: se uso --ignitions pero no se encontraron igniciones "
+                         "validas en '" << this->args.InFolder << "Ignitions.csv' "
+                         "(archivo ausente o vacio). Provea un Ignitions.csv con filas "
+                         "'Year,Ncell', o omita --ignitions." << std::endl;
+            std::exit(1);
+        }
         // DEBUGstd::cout << "Ignition Years: " << IgnitionYears  << std::endl;
         // DEBUGstd::cout << "Total Years: " << this->args.TotalYears  <<
         // std::endl;
