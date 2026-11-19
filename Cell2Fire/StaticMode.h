@@ -41,11 +41,13 @@ int runStaticMode(arguments* args,
                   int rows,
                   int cols,
                   double cellSide,
+                  double perimeterCells,
                   double xllcorner,
                   double yllcorner,
                   std::vector<std::vector<std::string>>& weatherData,
-                  // barreras (id de celda 1-based -> ancho en m); vacio si no hay
-                  const std::unordered_map<int, double>& barrierWidth,
+                  // arcos bloqueados por barrera: clave = from*nCells + to, valor = ancho (m).
+                  // Breaching por arco (misma logica que el motor dinamico).
+                  const std::unordered_map<long long, double>& blockedArcs,
                   const std::unordered_map<std::string, int>& fuelLookup);
 
 #endif  // STATICMODE_H

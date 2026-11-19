@@ -155,6 +155,10 @@ class Cell2Fire
     void InitCell(int id);
     string createOutputFolder(string metric);
     void reset(int rnumber, double rnumber2, int simExt);
+    // active-front-full: calcula las metricas intrinsecas de TODAS las celdas del
+    // frente activo (incluidas las interiores sin vecino libre), llenando los
+    // vectores de salida (ROS, intensidad, flame). Opcion A: metrica por celda.
+    void computeFullFrontMetrics();
     bool RunIgnition(boost::random::mt19937 generator, int ep);
     std::unordered_map<int, std::vector<int>> SendMessages();
     void GetMessages(const std::unordered_map<int, std::vector<int>>& sendMessageList);

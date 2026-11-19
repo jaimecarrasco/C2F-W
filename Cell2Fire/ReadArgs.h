@@ -35,6 +35,9 @@ struct arguments
     bool SimStatic = false;          // --sim-static: modo estatico. Calcula metricas potenciales
                                      // por celda para TODO el paisaje, una capa por fila de Weather.csv.
                                      // No propaga fuego; hereda el kernel (S/K/C/P), fmc-shading y lookup.
+    bool StaticGraph = false;        // --static-graph: ademas, emite el ROS DIRECCIONAL por arista
+                                     // (ROS de i hacia cada vecino j via la elipse de fuego) como
+                                     // grafo ponderado i,j,ros,tiempo -> insumo para rutas de fuego minimas.
     bool ActiveFrontFull = false;    // --active-front-full: enciende TODAS las celdas combustibles
                                      // como frente activo simultaneo y corre un unico paso de tiempo
                                      // (foto del frente completo en t fijo). Reutiliza la maquinaria

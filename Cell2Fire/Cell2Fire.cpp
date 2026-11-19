@@ -11,6 +11,7 @@ __maintainer__ = "Jaime Carrasco-Barra, Matilde Rivas, David Palacios"
 #include "DataGenerator.h"
 #include "KitralKernel.h"
 #include "ScottAndBurganKernel.h"
+#include "CanadianFBPKernel.h"
 #include "FuelModelUtils.h"
 #include "Lightning.h"
 #include "ReadArgs.h"
@@ -2422,6 +2423,82 @@ Cell2Fire::GetMessages(const std::unordered_map<int, std::vector<int>>& sendMess
  * - This method supports optional outputs, which can be toggled using
  * command-line arguments.
  */
+/*
+ * computeFullFrontMetrics (active-front-full, Opcion A)
+ * ----------------------------------------------------
+ * Calcula las metricas INTRINSECAS de comportamiento del fuego para TODAS las
+ * celdas combustibles del frente activo, incluidas las interiores que no tienen
+ * vecino libre (y que por eso manageFire nunca evaluaria). El comportamiento de
+ * una celda (ROS de cabeza, intensidad, flame length, fuego de copa) depende de
+ * su combustible, pendiente y viento -- no del estado del vecino-- asi que se
+ * calcula directamente con determine_destiny_metrics_*. Llena los vectores de
+ * salida para que las capas ROS/Intensity/FlameLength cubran todo el paisaje.
+ */
+void
+Cell2Fire::computeFullFrontMetrics()
+{
+    weatherDF* wptr = &this->wdf[this->weatherPeriod];
+    int filled = 0;
+    for (int cid = 1; cid <= this->nCells; ++cid)
+    {
+        inputs* d = &df[cid - 1];
+        if (d->nftype <= 0)
+            continue;  // no-combustible: deja 0 (se enmascara al escribir)
+
+        d->ws = wptr->ws;
+        d->waz = (int)wptr->waz;
+
+        // Cadena canonica completa (la misma que usa la propagacion y el modo
+        // --sim-static): calculate_s/k/fbp dan el ROS final por final_rate_of_spread10
+        // (combina superficie + copa via cfb). Asi ambos modos son identicos celda a celda.
+        main_outs metrics = {};
+        snd_outs sndstruct = {};
+        fire_struc headstruct = {}, flankstruct = {}, backstruct = {};
+        bool activeCrown = false;
+        if (this->args.Simulator == "K")
+        {
+            // head_cell real para el calculo de pendiente (replica del dinamico)
+            int hr = (cid - 1) / this->cols, hcc = (cid - 1) % this->cols;
+            int hang = (int)wptr->waz - 90; if (hang < 0) hang += 360;
+            hang = (int)(std::round(hang / 45.0) * 45.0) % 360;
+            int hcell = cid;
+            static const int DR[8] = {0,-1,-1,-1,0,1,1,1};
+            static const int DC[8] = {1,1,0,-1,-1,-1,0,1};
+            static const int ANG[8] = {0,45,90,135,180,225,270,315};
+            for (int k = 0; k < 8; ++k)
+                if (ANG[k] == hang)
+                {
+                    int nr = hr + DR[k], nc2 = hcc + DC[k];
+                    if (nr >= 0 && nr < this->rows && nc2 >= 0 && nc2 < this->cols)
+                    {
+                        int nid = nr * this->cols + nc2 + 1;
+                        if (df[nid - 1].nftype > 0) hcell = nid;
+                    }
+                }
+            calculate_k(d, &df[hcell - 1], (int)this->perimeterCells, this->coef_ptr, this->args_ptr, &metrics, &sndstruct,
+                        &headstruct, &flankstruct, &backstruct, activeCrown, wptr);
+        }
+        else if (this->args.Simulator == "C")
+            calculate_fbp(d, this->coef_ptr, &metrics, &sndstruct, &headstruct,
+                          &flankstruct, &backstruct, wptr);
+        else  // "S" o "P"
+            calculate_s(d, this->coef_ptr, this->args_ptr, &metrics, &sndstruct,
+                        &headstruct, &flankstruct, &backstruct, activeCrown, wptr);
+
+        this->RateOfSpreads[cid - 1] = headstruct.ros * this->args.HFactor;
+        this->surfaceIntensities[cid - 1] = metrics.sfi;
+        this->surfaceFlameLengths[cid - 1] = metrics.fl;
+        this->crownIntensities[cid - 1] = metrics.crown_intensity;
+        this->crownFlameLengths[cid - 1] = metrics.crown_flame_length;
+        this->maxFlameLengths[cid - 1] =
+            metrics.max_flame_length > 0 ? metrics.max_flame_length : metrics.fl;
+        this->crownState[cid - 1] = metrics.crown;
+        ++filled;
+    }
+    std::cout << "Active front FULL: metricas intrinsecas calculadas para " << filled
+              << " celdas combustibles (Opcion A)" << std::endl;
+}
+
 void
 Cell2Fire::Results()
 {
@@ -2431,6 +2508,11 @@ Cell2Fire::Results()
      *4: Results and outputs
      *
      ******************************************************************************/
+    // active-front-full (Opcion A): rellenar metricas de TODAS las celdas del
+    // frente, incluidas las interiores, antes de volcar las capas de salida.
+    if (this->args.ActiveFrontFull)
+        this->computeFullFrontMetrics();
+
     // Iterator
     // Declare an iterator to unordered_map
     std::unordered_map<int, Cells>::iterator it;
@@ -3132,24 +3214,19 @@ main(int argc, char* argv[])
     // todo el paisaje, una capa por fila de Weather.csv. No propaga fuego.
     if (args.SimStatic)
     {
-        // Mapa de barreras por celda (id 1-based -> ancho m) desde los arcos bloqueados.
-        std::unordered_map<int, double> barrierWidth;
-        for (const auto& kv : Forest2.blockedArcs)
-        {
-            long long key = kv.first;
-            int to = (int)(key % Forest2.nCells);      // celda destino del arco
-            double w = kv.second;
-            if (w >= 1e8)
-                w = Forest2.cellSide;                   // firebreak infranqueable: ancho ~1 celda
-            auto it = barrierWidth.find(to);
-            if (it == barrierWidth.end() || w > it->second)
-                barrierWidth[to] = w;
-        }
+        // Breaching por arco: se pasa blockedArcs tal cual (clave from*nCells+to,
+        // valor ancho m). El modo estatico replica la logica del motor dinamico.
         std::unordered_map<std::string, int> emptyLookup;
+        // KITRAL puebla sus tablas de combustible (fmcs, fls, hs) en setup_const();
+        // el desvio estatico se hace antes del punto donde el flujo normal la llama,
+        // asi que la invocamos aqui para que el kernel K disponga de sus tablas.
+        if (args.Simulator == "K")
+            setup_const();
         int rc = runStaticMode(&args, df, (int)Forest2.nCells, Forest2.coefs,
                                Forest2.rows, Forest2.cols, Forest2.cellSide,
+                               Forest2.perimeterCells,
                                Forest2.xllcorner, Forest2.yllcorner,
-                               Forest2.WeatherData, barrierWidth, emptyLookup);
+                               Forest2.WeatherData, Forest2.blockedArcs, emptyLookup);
         return rc;
     }
     // ----------------------------------------------------------------------------

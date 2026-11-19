@@ -90,6 +90,7 @@ parseArgs(int argc, char* argv[], arguments* args_ptr)
       if (lm) args_ptr->LbMode = std::string(lm); }
     args_ptr->FmcShading = cmdOptionExists(argv, argv + argc, "--fmc-shading");
     args_ptr->SimStatic = cmdOptionExists(argv, argv + argc, "--sim-static");
+    args_ptr->StaticGraph = cmdOptionExists(argv, argv + argc, "--static-graph");
     { char* bf = getCmdOption(argv, argv + argc, "--breach-factor");
       if (bf) args_ptr->BreachFactor = std::stod(bf); }
     { char* sf = getCmdOption(argv, argv + argc, "--spot-factor");
